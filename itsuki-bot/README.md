@@ -1,6 +1,5 @@
 # Itsuki 🍙 (general-knowledge study buddy for Discord)
 
-> *"A-asking questions is nothing to be embarrassed about! Now, let's study properly."*
 
 **Itsuki** is an AI Discord bot built in **n8n**. It answers classmates' general-knowledge and study questions right inside the class Discord server. You can ask it to explain a concept, summarize a topic or work through an idea, and the reply comes back short and in Discord markdown.
 
@@ -15,7 +14,6 @@ Itsuki is one of the two **Nakano Bots**. Its sibling, **Nino**, monitors Canvas
 | 💡 **General Q&A** | Answers questions on school subjects, concepts and everyday topics. |
 | 📖 **Explain, don't do** | It helps you understand material instead of producing graded work for you to hand in. |
 | 🧠 **Conversation memory** | Uses n8n's built-in agent memory, so you can ask follow-up questions in context. |
-| 💬 **Discord-native replies** | Formats answers in Discord markdown and keeps them under the 1,800-character message limit. |
 | 🎭 **Persona** | Replies in a polite, earnest, slightly flustered voice. |
 
 ---
