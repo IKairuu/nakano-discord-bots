@@ -1,6 +1,5 @@
 # Nino 📚 (Canvas deadline monitor for Discord)
 
-> *"Hmph. You still haven't checked your deadlines? Fine, I'll do it for you."*
 
 **Nino** is an AI Discord bot built entirely in **n8n**. It keeps a university class on top of their coursework: it watches Canvas LMS for upcoming assignments and events, combines them with a shared Google Calendar, and posts reminders to the class Discord server before anything is due. Classmates can also message Nino directly to ask what's coming up or to add things to the calendar.
 
