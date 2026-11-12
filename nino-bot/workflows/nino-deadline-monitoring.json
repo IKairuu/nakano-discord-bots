@@ -1,0 +1,530 @@
+{
+  "name": "nino-deadline-monitoring",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=https://mseuf.instructure.com/api/v1/users/self/upcoming_events",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        240,
+        -144
+      ],
+      "id": "afab5c46-08d9-406c-81ba-fbf70c1cd4d1",
+      "name": "Upcoming Events",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "kpiz8Vccw4qtXqsc",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "146a0bca-6ec8-4f5f-859f-e092b9c4be29",
+              "leftValue": "={{ DateTime.fromISO($json.task.due_at).setZone('Asia/Manila') }}",
+              "rightValue": "={{ $now }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "after"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        608,
+        -144
+      ],
+      "id": "8f583d0d-4ede-4e09-ad7c-24f4e3268fa4",
+      "name": "Filter Old Events",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var events = []\nfor (const items of $input.all()){\n  events.push({\n    task: {\n      \"title\": items.json.title,\n      \"created_at\": items.json.created_at,\n      \"description\": items.json.description,\n      \"type\": items.json.type,\n      \"due_at\": items.json.assignment.due_at,\n      \"lock_at\": items.json.assignment.lock_at\n    }\n  })\n}\n\nreturn events"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        432,
+        -144
+      ],
+      "id": "83364dc6-bd94-473e-9cce-87d88cbe6dc8",
+      "name": "Task Compiler"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "9ba1dda6-c9fa-456a-9904-4ce87394d5fa",
+              "leftValue": "={{ $json.deadline }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            },
+            {
+              "id": "431f57a4-e18e-4ee9-9c62-eff41cb2f7ec",
+              "leftValue": "={{ $('Filter Near Deadlines Events').all().first().json.events }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1200,
+        -16
+      ],
+      "id": "f3674b04-a6c6-4ddd-8117-9b222b02f54d",
+      "name": "If",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var deadlines = { \"deadline\": [] }\nfor (const item of $input.all()) {\n  if ( (DateTime.fromISO($json.task.due_at).setZone(\"Asia/Manila\") > DateTime.now().setZone(\"Asia/Manila\") ) && DateTime.fromISO($json.task.due_at).setZone(\"Asia/Manila\")  <= DateTime.now().setZone(\"Asia/Manila\").plus({ days: 4 })) {\n    deadlines[\"deadline\"].push(item)\n  }\n}\n\nreturn deadlines;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        -144
+      ],
+      "id": "e7e81f45-d4cf-41f1-8553-a55823b5c760",
+      "name": "Filter Near Deadlines",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "jsCode": "function stripHtml(html = '') {\n  return html\n    .replace(/<a[^>]*>[\\s\\S]*?<\\/a>/gi, '')\n    .replace(/<br\\s*\\/?>/gi, '\\n')\n    .replace(/<\\/(p|div|li|h\\d)>/gi, '\\n')\n    .replace(/<[^>]+>/g, '')\n    .replace(/&nbsp;/g, ' ')\n    .replace(/&amp;/g, '&')\n    .replace(/&lt;/g, '<')\n    .replace(/&gt;/g, '>')\n    .replace(/&quot;/g, '\"')\n    .replace(/&#39;/g, \"'\")\n    .replace(/&#(\\d+);/g, (_, n) => String.fromCharCode(n))\n    .replace(/\\[[^\\]]*\\]\\([^)]*\\)/g, '')\n    .replace(/\\[\\s*link\\s*\\]/gi, '')\n    .replace(/\\[\\s*\\]/g, '')\n    .replace(/https?:\\/\\/\\S+/g, '')\n    .replace(/[ \\t]+/g, ' ')\n    .replace(/\\s+([.,!?])/g, '$1')\n    .replace(/\\n\\s*\\n+/g, '\\n')\n    .trim();\n}\n\nfunction dateFormatter(date) {\n  return DateTime.fromISO(date).setZone(\"Asia/Manila\").toFormat(\"ccc, LLL d - h:mm a\")\n}\n\nconst deadlines = $input.first().json.deadline;\nconst events = $('Filter Near Deadlines Events').all()\nvar event_body;\nvar deadline_body;\nif (deadlines.length > 1) {\n  deadline_body = deadlines\n  .map((d, i) => [\n    `${i + 1}. **${stripHtml(d.json.task.title)}**`,\n    `   Description: ${stripHtml(`${d.json.task.description.split(\".\").length > 2 ? `${d.json.task.description.split(\".\")[0]}...` : d.json.task.description}` ?? \"No Description\")}`,\n    `   Due Date: \\`${dateFormatter(d.json.task.due_at)}\\``,\n  ].join('\\n'))\n  .join('\\n\\n');\n\n}\n\nif (events.length >= 1) {\n    event_body = events.map((d, i) => [\n    `${i + 1}. **${stripHtml(d.json.events[i].json.event.title)}**`,\n    `   Description: ${stripHtml(`${d.json.events[i].json.event.description.split(\".\").length > 2 ?  `${d.json.events[i].json.event.description.split(\".\")[0]}...` : d.json.events[i].json.event.description }` ?? \"No description\" )}`,\n    `   Due Date: \\`${dateFormatter(d.json.events[i].json.event.start)}\\``,\n  ].join('\\n'))\n  .join('\\n\\n');\n}\n\nreturn [\n  { json: \n    { \n      deadline: `**Almost Due Deadlines:** ${deadline_body !== undefined ? `\\n\\n${deadline_body}` : \"**None**\"}`,\nevent: `**Almost Due Events:** ${event_body !== undefined ? `\\n\\n${event_body}` : \"**None**\"}`} \n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1392,
+        -144
+      ],
+      "id": "1e30a9c2-e042-4e26-b771-e84eca57079c",
+      "name": "Text Formatter"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1446917229655490692",
+          "mode": "list",
+          "cachedResultName": "CS",
+          "cachedResultUrl": "https://discord.com/channels/1446917229655490692"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1566305394018746378",
+          "mode": "list",
+          "cachedResultName": "nino-announcements",
+          "cachedResultUrl": "https://discord.com/channels/1446917229655490692/1566305394018746378"
+        },
+        "content": "={{ $json.deadline }}\n{{ $json.event }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1616,
+        -144
+      ],
+      "id": "fa52acdc-06d1-4aaf-aedf-3afb139ddfc4",
+      "name": "Send a message",
+      "webhookId": "8b7038cc-89c6-4cb8-8b08-07965d9a266f",
+      "credentials": {
+        "discordBotApi": {
+          "id": "b9YBIMliKUQwgpXg",
+          "name": "Nino Nakano Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 6
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -16,
+        -128
+      ],
+      "id": "fc151696-d0f4-4623-97e7-27feb385061a",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "resource": "message",
+        "guildId": {
+          "__rl": true,
+          "value": "1446917229655490692",
+          "mode": "list",
+          "cachedResultName": "CS",
+          "cachedResultUrl": "https://discord.com/channels/1446917229655490692"
+        },
+        "channelId": {
+          "__rl": true,
+          "value": "1566305394018746378",
+          "mode": "list",
+          "cachedResultName": "nino-announcements",
+          "cachedResultUrl": "https://discord.com/channels/1446917229655490692/1566305394018746378"
+        },
+        "content": "🎉 You're all caught up! No assignments or events due until tomorrow. Enjoy the break, but check back soon! 📚",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        80
+      ],
+      "id": "ddc97d2d-7290-42d1-baf3-2f7ce1d66aee",
+      "name": "Return no deadlines text",
+      "webhookId": "42c26a65-8d19-441a-b790-4cbe841e2075",
+      "executeOnce": true,
+      "credentials": {
+        "discordBotApi": {
+          "id": "b9YBIMliKUQwgpXg",
+          "name": "Nino Nakano Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "abandiakyle2112@gmail.com",
+          "mode": "list",
+          "cachedResultName": "abandiakyle2112@gmail.com"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        64
+      ],
+      "id": "4860959e-8630-4157-86dd-c38c3ee0c655",
+      "name": "Get many events",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "Ipibts0miSpywSyP",
+          "name": "Nino Nakano Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0fdf33b7-e08e-442c-aa2d-3d6a0c3c4b1b",
+              "leftValue": "={{ $json.recurringEventId }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notExists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        432,
+        64
+      ],
+      "id": "f46dbca1-4143-4f62-a430-b916e65fff3e",
+      "name": "Filter Recurring Events"
+    },
+    {
+      "parameters": {
+        "jsCode": "var events = []\nfor (const item of $input.all()) {\n  events.push({\n    \"event\":\n    {\"title\": item.json.summary,\n    \"start\": DateTime.fromISO(item.json.start.dateTime || item.json.start.date).setZone('Asia/Manila'),\n    \"end\": DateTime.fromISO(item.json.end.dateTime || item.json.end.date).setZone('Asia/Manila'),\n    \"description\": item.json.description,\n     \"all_day\": (item.json.start.date != null && item.json.end.date != null)\n  }})\n}\n\nreturn events;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        64
+      ],
+      "id": "b7e7f2a8-e603-4b4f-ade4-cc4fdbc3ab32",
+      "name": "Event Compiler"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1024,
+        -16
+      ],
+      "id": "7c0c1d61-1f52-48d7-a67e-18ca78921916",
+      "name": "Merge",
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "var deadlines = { \"events\": [] }\nfor (const item of $input.all()) {\n  if ( (DateTime.fromISO(item.json.event.start).setZone(\"Asia/Manila\") > DateTime.now().setZone(\"Asia/Manila\")) && DateTime.fromISO(item.json.event.start).setZone(\"Asia/Manila\") <= DateTime.now().setZone(\"Asia/Manila\").plus({ days: 4 })) {\n    deadlines[\"events\"].push(item)\n  }\n}\n\nreturn deadlines;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        64
+      ],
+      "id": "c93740c1-a012-4980-90ad-96bc0d9ca352",
+      "name": "Filter Near Deadlines Events",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "events": [
+          "init"
+        ]
+      },
+      "type": "n8n-nodes-base.n8nTrigger",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        64
+      ],
+      "id": "8c816094-c3b1-421a-85c9-f9ed9f1b1755",
+      "name": "n8n Trigger"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Upcoming Events": {
+      "main": [
+        [
+          {
+            "node": "Task Compiler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Task Compiler": {
+      "main": [
+        [
+          {
+            "node": "Filter Old Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Old Events": {
+      "main": [
+        [
+          {
+            "node": "Filter Near Deadlines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Text Formatter",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return no deadlines text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Near Deadlines": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Formatter": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Upcoming Events",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get many events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many events": {
+      "main": [
+        [
+          {
+            "node": "Filter Recurring Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Recurring Events": {
+      "main": [
+        [
+          {
+            "node": "Event Compiler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Event Compiler": {
+      "main": [
+        [
+          {
+            "node": "Filter Near Deadlines Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Near Deadlines Events": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "n8n Trigger": {
+      "main": [
+        [
+          {
+            "node": "Upcoming Events",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get many events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "cd8ff5f3-c6bd-472d-933f-b76f3a2646ed",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9303a4f42b081e045dba0b8758beea9a612f0d29c4bfcc885a093891ebc720d1"
+  },
+  "nodeGroups": [],
+  "id": "TtrV9kvpQA6PsYeX",
+  "tags": []
+}

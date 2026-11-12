@@ -1,0 +1,147 @@
+{
+  "name": "nino-fetch-announcements",
+  "nodes": [
+    {
+      "parameters": {
+        "workflowInputs": {
+          "values": [
+            {
+              "name": "data"
+            }
+          ]
+        }
+      },
+      "id": "c055762a-8fe7-4141-a639-df2372f30060",
+      "typeVersion": 1.1,
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        512,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=https://mseuf.instructure.com/api/v1/users/self/upcoming_events",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        720,
+        224
+      ],
+      "id": "8e5e9b0f-5e54-4b18-ba29-776ff8d560a4",
+      "name": "Upcoming Events",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "kpiz8Vccw4qtXqsc",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "146a0bca-6ec8-4f5f-859f-e092b9c4be29",
+              "leftValue": "={{ DateTime.fromISO($json.task.due_at).setZone('Asia/Manila') }}",
+              "rightValue": "={{ $now }}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "after"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        1104,
+        224
+      ],
+      "id": "6263cf42-4346-42a4-8fff-daf363efb86e",
+      "name": "Filter Old Events"
+    },
+    {
+      "parameters": {
+        "jsCode": "var events = []\nfor (const items of $input.all()){\n  events.push({\n    task: {\n      \"course\": items.json.context_name,\n      \"title\": items.json.title,\n      \"created_at\": items.json.created_at,\n      \"description\": items.json.description,\n      \"type\": items.json.type,\n      \"status\": items.json.assignment.availability_status.status,\n      \"due_at\": items.json.assignment.due_at,\n      \"lock_at\": items.json.assignment.lock_at\n    }\n  })\n}\n\nreturn events"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        224
+      ],
+      "id": "ffe1394e-7175-4d22-a394-5144ddac8d1c",
+      "name": "Task Compiler"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Upcoming Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upcoming Events": {
+      "main": [
+        [
+          {
+            "node": "Task Compiler",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Old Events": {
+      "main": [
+        []
+      ]
+    },
+    "Task Compiler": {
+      "main": [
+        [
+          {
+            "node": "Filter Old Events",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "130343e6-a282-4d63-bd1c-30b9e35bec86",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9303a4f42b081e045dba0b8758beea9a612f0d29c4bfcc885a093891ebc720d1"
+  },
+  "nodeGroups": [],
+  "id": "V5LwGKg9IXI1s41H",
+  "tags": []
+}

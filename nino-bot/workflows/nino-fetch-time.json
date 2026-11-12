@@ -1,0 +1,83 @@
+{
+  "name": "nino-fetch-time",
+  "nodes": [
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "id": "c055762a-8fe7-4141-a639-df2372f30060",
+      "typeVersion": 1.1,
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "position": [
+        272,
+        352
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://time.now/developer/api/timezone/Asia/Manila",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        496,
+        352
+      ],
+      "id": "c28f784a-0186-4874-aefb-97650567144c",
+      "name": "Fetch Asia/Manila Time"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nreturn { \"current_time\": new Date($input.first().json.datetime).toLocaleString(\"en-PH\", {\n  timeZone: \"Asia/Manila\",\n  dateStyle: \"medium\",\n  timeStyle: \"short\"\n})\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        352
+      ],
+      "id": "a6928b56-6a3f-4646-9eb4-06fc3486487b",
+      "name": "Time formatter"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Fetch Asia/Manila Time",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Asia/Manila Time": {
+      "main": [
+        [
+          {
+            "node": "Time formatter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "3456d1a3-f2ee-4c27-93dd-9b8e04cd6c36",
+  "meta": {
+    "instanceId": "9303a4f42b081e045dba0b8758beea9a612f0d29c4bfcc885a093891ebc720d1"
+  },
+  "nodeGroups": [],
+  "id": "q4OnB4uuWzAkWtkx",
+  "tags": []
+}
